@@ -1,4 +1,5 @@
 token.txt
+.idea/
 .venv/
 __pycache__/
 .env

@@ -3,10 +3,11 @@ import aiohttp
 from aiogram import Router
 from aiogram import types
 from aiogram.filters import Command
-
 from dotenv import load_dotenv
-
-from .db import log_request
+from sqlalchemy import create_engine
+from fastapi import FastAPI
+from sqlalchemy.orm import sessionmaker
+import asyncpg
 
 
 load_dotenv()
@@ -47,3 +48,27 @@ async def send_weather(message: types.Message):
         await message.reply(weather_info)
     except IndexError:
         await message.reply("укажите город после команды. Пример: /weather Москва")
+
+
+DATABASE_URL = os.getenv('DATABASE_URL')
+app = FastAPI()
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+async def fetch_logs():
+    conn = await asyncpg.connect(DATABASE_URL)
+    rows = await conn.fetch("SELECT * FROM logs")
+    await conn.close()
+    return rows
+
+
+async def connect_to_db():
+    return await asyncpg.connect(DATABASE_URL)
+
+async def log_request(user_id, command, response):
+    conn = await connect_to_db()
+    await conn.execute('''
+        INSERT INTO logs(user_id, command, response, created_at) VALUES($1, $2, $3, NOW())
+    ''', user_id, command, response)
+    await conn.close()
